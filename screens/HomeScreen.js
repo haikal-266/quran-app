@@ -17,12 +17,12 @@ const SurahItem = React.memo(({ item, onPress }) => (
     onPress={() => onPress(item)}
   >
     <View style={styles.numberContainer}>
-      <Text style={styles.number}>{item.number}</Text>
+      <Text style={styles.number}>{item.nomor}</Text>
     </View>
     <View style={styles.surahInfo}>
-      <Text style={styles.nameArabic}>{item.name}</Text>
-      <Text style={styles.nameEnglish}>{item.englishName}</Text>
-      <Text style={styles.verses}>{item.numberOfAyahs} Ayat</Text>
+      <Text style={styles.nameArabic}>{item.nama}</Text>
+      <Text style={styles.nameEnglish}>{item.nama_latin}</Text>
+      <Text style={styles.verses}>{item.jumlah_ayat} Ayat • {item.tempat_turun}</Text>
     </View>
   </TouchableOpacity>
 ));
@@ -34,8 +34,8 @@ export default function HomeScreen({ navigation }) {
 
   const fetchSurahs = useCallback(async () => {
     try {
-      const response = await axios.get('https://api.alquran.cloud/v1/surah');
-      setSurahs(response.data.data);
+      const response = await axios.get('https://quran-api.santrikoding.com/api/surah');
+      setSurahs(response.data);
     } catch (error) {
       console.error('Error fetching surahs:', error);
     } finally {
@@ -51,9 +51,10 @@ export default function HomeScreen({ navigation }) {
 
   const handleSurahPress = useCallback((item) => {
     navigation.navigate('Surah', { 
-      number: item.number,
-      name: item.name,
-      englishName: item.englishName
+      nomor: item.nomor,
+      nama: item.nama,
+      nama_latin: item.nama_latin,
+      jumlah_ayat: item.jumlah_ayat
     });
   }, [navigation]);
 
@@ -78,7 +79,7 @@ export default function HomeScreen({ navigation }) {
       <FlatList
         data={surahs}
         renderItem={renderItem}
-        keyExtractor={(item) => item.number.toString()}
+        keyExtractor={(item) => item.nomor.toString()}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={true}
         initialNumToRender={10}
@@ -145,7 +146,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
-    fontFamily: 'HAFS-Arabic-Quran',
   },
   nameEnglish: {
     fontSize: 16,

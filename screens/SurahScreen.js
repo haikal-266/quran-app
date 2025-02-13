@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import axios from 'axios';
 
+const cleanHtmlTags = (text) => {
+  return text.replace(/<[^>]*>/g, '');
+};
+
 export default function SurahScreen({ route }) {
-  const { number, name, englishName } = route.params;
+  const { nomor, nama, nama_latin } = route.params;
   const [ayahs, setAyahs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -13,8 +17,8 @@ export default function SurahScreen({ route }) {
 
   const fetchAyahs = async () => {
     try {
-      const response = await axios.get(`https://api.alquran.cloud/v1/surah/${number}/ar.asad`);
-      setAyahs(response.data.data.ayahs);
+      const response = await axios.get(`https://quran-api.santrikoding.com/api/surah/${nomor}`);
+      setAyahs(response.data.ayat);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching ayahs:', error);
@@ -33,10 +37,12 @@ export default function SurahScreen({ route }) {
   const renderItem = ({ item }) => (
     <View style={styles.ayahContainer}>
       <View style={styles.numberContainer}>
-        <Text style={styles.ayahNumber}>{item.numberInSurah}</Text>
+        <Text style={styles.ayahNumber}>{item.nomor}</Text>
       </View>
       <View style={styles.textContainer}>
-        <Text style={styles.arabicText}>{item.text}</Text>
+        <Text style={styles.arabicText}>{item.ar}</Text>
+        <Text style={styles.translationText}>{cleanHtmlTags(item.tr)}</Text>
+        <Text style={styles.indonesianText}>{item.idn}</Text>
       </View>
     </View>
   );
@@ -44,13 +50,13 @@ export default function SurahScreen({ route }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.surahName}>{name}</Text>
-        <Text style={styles.surahNameEnglish}>{englishName}</Text>
+        <Text style={styles.surahName}>{nama}</Text>
+        <Text style={styles.surahNameEnglish}>{nama_latin}</Text>
       </View>
       <FlatList
         data={ayahs}
         renderItem={renderItem}
-        keyExtractor={(item) => item.number.toString()}
+        keyExtractor={(item) => item.nomor.toString()}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={true}
         initialNumToRender={10}
@@ -130,7 +136,20 @@ const styles = StyleSheet.create({
     lineHeight: 55,
     textAlign: 'right',
     color: '#333',
-    fontFamily: 'HAFS-Arabic-Quran',
     letterSpacing: 1,
+    marginBottom: 10,
+  },
+  translationText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'right',
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  indonesianText: {
+    fontSize: 14,
+    color: '#444',
+    textAlign: 'left',
+    alignSelf: 'stretch',
   },
 }); 

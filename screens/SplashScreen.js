@@ -69,7 +69,6 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: 'white',
     textAlign: 'center',
-    fontFamily: 'HAFS-Arabic-Quran',
   },
   title: {
     fontSize: 36,
