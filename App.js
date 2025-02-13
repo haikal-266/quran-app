@@ -7,6 +7,7 @@ import SplashScreen from './screens/SplashScreen';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
 import { COLORS } from './constants/Colors';
+import Navbar from './components/Navbar';
 
 const Stack = createNativeStackNavigator();
 
@@ -35,26 +36,37 @@ export default function App() {
       }
     }}>
       <StatusBar style="light" />
-      <Stack.Navigator 
-        initialRouteName="Splash" 
-        screenOptions={{ 
-          headerShown: false,
-          animation: 'fade'
-        }}
-      >
-        <Stack.Screen 
-          name="Splash" 
-          component={SplashScreen}
-        />
-        <Stack.Screen 
-          name="Home" 
-          component={HomeScreen}
-        />
-        <Stack.Screen 
-          name="Surah" 
-          component={SurahScreen}
-        />
-      </Stack.Navigator>
+      <View style={{ flex: 1 }}>
+        <Stack.Navigator 
+          initialRouteName="Splash" 
+          screenOptions={{ 
+            headerShown: false,
+            animation: 'fade',
+            contentStyle: {
+              paddingBottom: 85, // Menambah padding bottom
+            }
+          }}
+        >
+          <Stack.Screen 
+            name="Splash" 
+            component={SplashScreen}
+            options={{
+              contentStyle: {
+                paddingBottom: 0 // Tidak ada padding untuk splash screen
+              }
+            }}
+          />
+          <Stack.Screen 
+            name="Home" 
+            component={HomeScreen}
+          />
+          <Stack.Screen 
+            name="Surah" 
+            component={SurahScreen}
+          />
+        </Stack.Navigator>
+        {isReady && <Navbar />}
+      </View>
     </NavigationContainer>
   );
 } 

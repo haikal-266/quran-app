@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, Animated } from 'react-native';
 import axios from 'axios';
 
 const COLORS = {
@@ -16,6 +16,34 @@ const COLORS = {
 
 const cleanHtmlTags = (text) => {
   return text.replace(/<[^>]*>/g, '');
+};
+
+const ExpandableDescription = ({ description }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [animation] = useState(new Animated.Value(0));
+
+  const toggleExpand = () => {
+    const toValue = expanded ? 0 : 1;
+    setExpanded(!expanded);
+    Animated.spring(animation, {
+      toValue,
+      useNativeDriver: false,
+      friction: 8,
+    }).start();
+  };
+
+  return (
+    <View style={styles.expandableContainer}>
+      <TouchableOpacity onPress={toggleExpand} style={styles.expandButton}>
+        <Text style={styles.headerDescription} numberOfLines={expanded ? undefined : 2}>
+          {cleanHtmlTags(description)}
+        </Text>
+        <Text style={styles.expandText}>
+          {expanded ? 'Lihat lebih sedikit' : 'Lihat selengkapnya'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
 };
 
 export default function SurahScreen({ route }) {
@@ -66,9 +94,7 @@ export default function SurahScreen({ route }) {
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>{nama}</Text>
         <Text style={styles.headerSubtitle}>{nama_latin}</Text>
-        <Text style={styles.headerDescription} numberOfLines={2}>
-          {cleanHtmlTags(deskripsi)}
-        </Text>
+        <ExpandableDescription description={deskripsi} />
       </View>
       <FlatList
         data={ayahs}
@@ -100,8 +126,8 @@ const styles = StyleSheet.create({
     paddingTop: 30,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    marginBottom: 10,
-    elevation: 5,
+    marginBottom: 5,
+    elevation: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -123,7 +149,7 @@ const styles = StyleSheet.create({
   headerDescription: {
     fontSize: 14,
     color: COLORS.light,
-    textAlign: 'center',
+    textAlign: 'left',
     opacity: 0.9,
     lineHeight: 20,
   },
@@ -182,5 +208,18 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     textAlign: 'left',
     lineHeight: 22,
+  },
+  expandableContainer: {
+    marginTop: 8,
+  },
+  expandButton: {
+    padding: 4,
+  },
+  expandText: {
+    color: COLORS.accent,
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
