@@ -1,7 +1,19 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
+
+const COLORS = {
+  primary: '#2D4356',
+  secondary: '#435B66',
+  accent: '#A76F6F',
+  light: '#EAB2A0',
+  background: '#F8F6F4',
+  white: '#FFFFFF',
+  text: '#2D4356',
+  textLight: '#435B66',
+  textMuted: '#A76F6F'
+};
 
 export default function SplashScreen({ navigation }) {
   const fadeAnim = new Animated.Value(0);
@@ -29,6 +41,7 @@ export default function SplashScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <View style={styles.overlay} />
       <Animated.View
         style={[
           styles.content,
@@ -41,8 +54,8 @@ export default function SplashScreen({ navigation }) {
         <View style={styles.logoContainer}>
           <Text style={styles.logoText}>بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</Text>
         </View>
-        <Text style={styles.title}>Al-Quran</Text>
-        <Text style={styles.subtitle}>Baca Al-Quran Kapan Saja</Text>
+        <Text style={styles.title}>Al-Qur'an Digital</Text>
+        <Text style={styles.subtitle}>Baca dan Pelajari Al-Qur'an</Text>
       </Animated.View>
     </View>
   );
@@ -51,12 +64,18 @@ export default function SplashScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.secondary,
+    opacity: 0.1,
+  },
   content: {
     alignItems: 'center',
+    padding: 20,
   },
   logoContainer: {
     width: width * 0.8,
@@ -64,20 +83,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
+    backgroundColor: COLORS.accent,
+    borderRadius: 20,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   logoText: {
     fontSize: 32,
-    color: 'white',
+    color: COLORS.white,
     textAlign: 'center',
   },
   title: {
     fontSize: 36,
-    color: 'white',
+    color: COLORS.white,
     fontWeight: 'bold',
     marginBottom: 10,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: COLORS.light,
+    textAlign: 'center',
   },
 }); 

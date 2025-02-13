@@ -6,6 +6,7 @@ import SurahScreen from './screens/SurahScreen';
 import SplashScreen from './screens/SplashScreen';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
+import { COLORS } from './constants/Colors';
 
 const Stack = createNativeStackNavigator();
 
@@ -21,15 +22,14 @@ export default function App() {
 
   if (!isReady) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#4CAF50' }}>
-        <ActivityIndicator size="large" color="white" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.primary }}>
+        <ActivityIndicator size="large" color={COLORS.white} />
       </View>
     );
   }
 
   return (
     <NavigationContainer onStateChange={(state) => {
-      // Memastikan navigasi sudah siap
       if (state !== undefined) {
         setIsReady(true);
       }
@@ -49,26 +49,10 @@ export default function App() {
         <Stack.Screen 
           name="Home" 
           component={HomeScreen}
-          options={{
-            title: 'Al-Quran App',
-            headerStyle: {
-              backgroundColor: '#4CAF50',
-            },
-            headerTintColor: '#fff',
-            headerShown: true,
-          }}
         />
         <Stack.Screen 
           name="Surah" 
           component={SurahScreen}
-          options={({ route }) => ({ 
-            title: route.params?.name,
-            headerStyle: {
-              backgroundColor: '#4CAF50',
-            },
-            headerTintColor: '#fff',
-            headerShown: true,
-          })}
         />
       </Stack.Navigator>
     </NavigationContainer>
