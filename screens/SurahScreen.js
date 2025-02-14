@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  ActivityIndicator, 
+  TouchableOpacity,
+  Animated,
+  Dimensions 
+} from 'react-native';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 import axios from 'axios';
+import { COLORS } from '../constants/Colors';
 
-const COLORS = {
-  primary: '#2D4356',
-  secondary: '#435B66',
-  accent: '#A76F6F',
-  light: '#EAB2A0',
-  background: '#F8F6F4',
-  white: '#FFFFFF',
-  text: '#2D4356',
-  textLight: '#435B66',
-  textMuted: '#A76F6F'
-};
+const { width } = Dimensions.get('window');
 
 const cleanHtmlTags = (text) => {
   return text.replace(/<[^>]*>/g, '');
 };
 
-const ExpandableDescription = ({ description }) => {
+const DescriptionDropdown = ({ description }) => {
   const [expanded, setExpanded] = useState(false);
   const [animation] = useState(new Animated.Value(0));
 
@@ -27,38 +29,172 @@ const ExpandableDescription = ({ description }) => {
     setExpanded(!expanded);
     Animated.spring(animation, {
       toValue,
-      useNativeDriver: false,
       friction: 8,
+      useNativeDriver: false,
     }).start();
   };
 
+  const maxHeight = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [80, 300],
+  });
+
   return (
-    <View style={styles.expandableContainer}>
-      <TouchableOpacity onPress={toggleExpand} style={styles.expandButton}>
-        <Text style={styles.headerDescription} numberOfLines={expanded ? undefined : 2}>
+    <View style={styles.descriptionContainer}>
+      <Animated.View style={[styles.descriptionContent, { maxHeight }]}>
+        <Text style={styles.description} numberOfLines={expanded ? undefined : 3}>
           {cleanHtmlTags(description)}
         </Text>
+      </Animated.View>
+      <TouchableOpacity onPress={toggleExpand} style={styles.expandButton}>
         <Text style={styles.expandText}>
           {expanded ? 'Lihat lebih sedikit' : 'Lihat selengkapnya'}
         </Text>
+        <MaterialIcons 
+          name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} 
+          size={24} 
+          color={COLORS.light} 
+        />
       </TouchableOpacity>
     </View>
   );
 };
 
+const AyahCard = ({ item, index }) => {
+  const [sound, setSound] = useState();
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Format nomor surah dan ayat untuk URL audio
+  const formatAudioUrl = (surahNumber, ayatNumber) => {
+    const paddedSurah = String(surahNumber).padStart(3, '0');
+    const paddedAyat = String(ayatNumber).padStart(3, '0');
+    return `https://equran.id/audio/ayat/arabic-${paddedSurah}-${paddedAyat}.mp3`;
+  };
+
+  async function playSound(surahNumber, ayatNumber) {
+    try {
+      setIsLoading(true);
+      // Unload previous sound if exists
+      if (sound) {
+        await sound.unloadAsync();
+      }
+
+      const audioUrl = formatAudioUrl(surahNumber, ayatNumber);
+      console.log('Playing audio:', audioUrl);
+
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: audioUrl },
+        { shouldPlay: true },
+        onPlaybackStatusUpdate
+      );
+
+      setSound(newSound);
+      setIsPlaying(true);
+      await newSound.playAsync();
+    } catch (error) {
+      console.error('Error playing sound:', error);
+      alert('Maaf, terjadi kesalahan saat memainkan audio');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const onPlaybackStatusUpdate = (status) => {
+    if (status.didJustFinish) {
+      setIsPlaying(false);
+    }
+  };
+
+  const handlePlayPause = async () => {
+    try {
+      if (isPlaying) {
+        await sound?.pauseAsync();
+        setIsPlaying(false);
+      } else {
+        if (sound) {
+          await sound.playAsync();
+          setIsPlaying(true);
+        } else {
+          // Dapatkan nomor surah dari parent component
+          const surahNumber = item.surah || 1; // default ke surah 1 jika tidak ada
+          await playSound(surahNumber, item.nomor);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling play/pause:', error);
+      alert('Maaf, terjadi kesalahan saat memainkan audio');
+    }
+  };
+
+  useEffect(() => {
+    return sound
+      ? () => {
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
+
+  return (
+    <View style={styles.ayahCard}>
+      <View style={styles.ayahHeader}>
+        <View style={styles.numberContainer}>
+          <Text style={styles.ayahNumber}>{item.nomor}</Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.audioButton}
+          onPress={handlePlayPause}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color={COLORS.accent} />
+          ) : (
+            <Ionicons 
+              name={isPlaying ? "pause-circle" : "play-circle"} 
+              size={32} 
+              color={COLORS.accent} 
+            />
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.ayahContent}>
+        <Text style={styles.arabicText}>{item.ar}</Text>
+        <View style={styles.translationContainer}>
+          <Text style={styles.latinText}>{cleanHtmlTags(item.tr)}</Text>
+          <Text style={styles.translationText}>{item.idn}</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
 export default function SurahScreen({ route }) {
-  const { nomor, nama, nama_latin, deskripsi } = route.params;
+  const { nomor, nama, nama_latin, deskripsi, jumlah_ayat } = route.params;
   const [ayahs, setAyahs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchAyahs();
+    // Setup audio mode
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      staysActiveInBackground: true,
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    });
   }, []);
 
   const fetchAyahs = async () => {
     try {
       const response = await axios.get(`https://quran-api.santrikoding.com/api/surah/${nomor}`);
-      setAyahs(response.data.ayat);
+      // Tambahkan nomor surah ke setiap ayat
+      const ayatsWithSurah = response.data.ayat.map(ayat => ({
+        ...ayat,
+        surah: nomor
+      }));
+      setAyahs(ayatsWithSurah);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching ayahs:', error);
@@ -69,42 +205,31 @@ export default function SurahScreen({ route }) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
   }
 
-  const renderItem = ({ item }) => (
-    <View style={styles.ayahContainer}>
-      <View style={styles.ayahHeader}>
-        <View style={styles.numberContainer}>
-          <Text style={styles.ayahNumber}>{item.nomor}</Text>
-        </View>
-      </View>
-      <View style={styles.textContainer}>
-        <Text style={styles.arabicText}>{item.ar}</Text>
-        <Text style={styles.translationText}>{cleanHtmlTags(item.tr)}</Text>
-        <Text style={styles.indonesianText}>{item.idn}</Text>
-      </View>
-    </View>
-  );
-
   return (
     <View style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>{nama}</Text>
-        <Text style={styles.headerSubtitle}>{nama_latin}</Text>
-        <ExpandableDescription description={deskripsi} />
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Text style={styles.surahName}>{nama}</Text>
+          <Text style={styles.surahNameLatin}>{nama_latin}</Text>
+          <Text style={styles.surahInfo}>
+            {jumlah_ayat} Ayat
+          </Text>
+        </View>
+        <View style={styles.divider} />
+        <DescriptionDropdown description={deskripsi} />
       </View>
+
       <FlatList
         data={ayahs}
-        renderItem={renderItem}
+        renderItem={({ item, index }) => <AyahCard item={item} index={index} />}
         keyExtractor={(item) => item.nomor.toString()}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={10}
       />
     </View>
   );
@@ -120,106 +245,129 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerContainer: {
+  header: {
     backgroundColor: COLORS.primary,
     padding: 20,
-    paddingTop: 30,
+    paddingTop: 40,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    marginBottom: 5,
-    elevation: 15,
+    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+  headerContent: {
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  surahName: {
+    fontSize: 32,
     color: COLORS.white,
-    textAlign: 'center',
+    fontWeight: 'bold',
     marginBottom: 5,
   },
-  headerSubtitle: {
-    fontSize: 18,
+  surahNameLatin: {
+    fontSize: 20,
     color: COLORS.light,
-    textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 5,
   },
-  headerDescription: {
+  surahInfo: {
+    fontSize: 16,
+    color: COLORS.light,
+    opacity: 0.8,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.light,
+    opacity: 0.2,
+    marginVertical: 15,
+  },
+  descriptionContainer: {
+    overflow: 'hidden',
+  },
+  descriptionContent: {
+    overflow: 'hidden',
+  },
+  description: {
     fontSize: 14,
     color: COLORS.light,
     textAlign: 'left',
-    opacity: 0.9,
     lineHeight: 20,
+    opacity: 0.9,
   },
-  list: {
-    padding: 16,
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 10,
   },
-  ayahContainer: {
+  expandText: {
+    color: COLORS.light,
+    fontSize: 14,
+    marginRight: 5,
+  },
+  listContainer: {
+    padding: 15,
+  },
+  ayahCard: {
     backgroundColor: COLORS.white,
     borderRadius: 15,
-    marginBottom: 16,
-    elevation: 3,
+    marginBottom: 15,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   ayahHeader: {
-    padding: 12,
-    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.light,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   numberContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.accent,
+    width: 40,
+    height: 40,
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
   ayahNumber: {
     color: COLORS.white,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  textContainer: {
-    padding: 16,
+  audioButton: {
+    padding: 5,
+  },
+  ayahContent: {
+    padding: 15,
   },
   arabicText: {
-    fontSize: 26,
-    lineHeight: 55,
-    textAlign: 'right',
+    fontSize: 28,
     color: COLORS.text,
-    marginBottom: 16,
+    textAlign: 'right',
+    lineHeight: 55,
+    marginBottom: 20,
   },
-  translationText: {
+  translationContainer: {
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.accent,
+    paddingLeft: 15,
+  },
+  latinText: {
     fontSize: 16,
     color: COLORS.textMuted,
-    textAlign: 'left',
-    marginBottom: 8,
+    marginBottom: 10,
     fontStyle: 'italic',
   },
-  indonesianText: {
+  translationText: {
     fontSize: 14,
-    color: COLORS.textLight,
-    textAlign: 'left',
+    color: COLORS.text,
     lineHeight: 22,
-  },
-  expandableContainer: {
-    marginTop: 8,
-  },
-  expandButton: {
-    padding: 4,
-  },
-  expandText: {
-    color: COLORS.accent,
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: 8,
-    textAlign: 'center',
   },
 });
