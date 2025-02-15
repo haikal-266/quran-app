@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -22,7 +22,7 @@ const cleanHtmlTags = (text) => {
 
 const DescriptionDropdown = ({ description }) => {
   const [expanded, setExpanded] = useState(false);
-  const [animation] = useState(new Animated.Value(0));
+  const animation = useRef(new Animated.Value(0)).current;
 
   const toggleExpand = () => {
     const toValue = expanded ? 0 : 1;
@@ -30,32 +30,64 @@ const DescriptionDropdown = ({ description }) => {
     Animated.spring(animation, {
       toValue,
       friction: 8,
+      tension: 40,
       useNativeDriver: false,
     }).start();
   };
 
-  const maxHeight = animation.interpolate({
+  const opacity = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: [80, 300],
+    outputRange: [0, 1],
+  });
+
+  const translateY = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-20, 0],
   });
 
   return (
     <View style={styles.descriptionContainer}>
-      <Animated.View style={[styles.descriptionContent, { maxHeight }]}>
-        <Text style={styles.description} numberOfLines={expanded ? undefined : 3}>
-          {cleanHtmlTags(description)}
-        </Text>
-      </Animated.View>
-      <TouchableOpacity onPress={toggleExpand} style={styles.expandButton}>
+      <TouchableOpacity 
+        onPress={toggleExpand} 
+        style={[
+          styles.expandButton,
+          expanded && styles.expandButtonActive
+        ]}
+      >
         <Text style={styles.expandText}>
-          {expanded ? 'Lihat lebih sedikit' : 'Lihat selengkapnya'}
+          {expanded ? 'Tutup deskripsi surah' : 'Baca deskripsi surah'}
         </Text>
         <MaterialIcons 
           name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} 
-          size={24} 
+          size={20} 
           color={COLORS.light} 
         />
       </TouchableOpacity>
+
+      {expanded && (
+        <Animated.View 
+          style={[
+            styles.descriptionContent,
+            {
+              opacity,
+              transform: [{ translateY }]
+            }
+          ]}
+        >
+          <View style={styles.descriptionHeader}>
+            <MaterialIcons 
+              name="info-outline" 
+              size={20} 
+              color={COLORS.accent}
+              style={styles.infoIcon}
+            />
+            <Text style={styles.descriptionTitle}>Tentang Surah Ini</Text>
+          </View>
+          <Text style={styles.description}>
+            {cleanHtmlTags(description)}
+          </Text>
+        </Animated.View>
+      )}
     </View>
   );
 };
@@ -65,22 +97,20 @@ const AyahCard = ({ item, index }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Format nomor surah dan ayat untuk URL audio
-  const formatAudioUrl = (surahNumber, ayatNumber) => {
-    const paddedSurah = String(surahNumber).padStart(3, '0');
-    const paddedAyat = String(ayatNumber).padStart(3, '0');
-    return `https://equran.id/audio/ayat/arabic-${paddedSurah}-${paddedAyat}.mp3`;
+  // Format audio URL menggunakan API alquran.cloud
+  const getAudioUrl = (surahNumber, ayatNumber) => {
+    // Menggunakan reciter Mishari Rashid al-`Afasy
+    return `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${item.nomor_ayat_global}.mp3`;
   };
 
   async function playSound(surahNumber, ayatNumber) {
     try {
       setIsLoading(true);
-      // Unload previous sound if exists
       if (sound) {
         await sound.unloadAsync();
       }
 
-      const audioUrl = formatAudioUrl(surahNumber, ayatNumber);
+      const audioUrl = getAudioUrl(surahNumber, ayatNumber);
       console.log('Playing audio:', audioUrl);
 
       const { sound: newSound } = await Audio.Sound.createAsync(
@@ -94,7 +124,7 @@ const AyahCard = ({ item, index }) => {
       await newSound.playAsync();
     } catch (error) {
       console.error('Error playing sound:', error);
-      alert('Maaf, terjadi kesalahan saat memainkan audio');
+      alert('Maaf, terjadi kesalahan saat memainkan audio. Silakan coba lagi.');
     } finally {
       setIsLoading(false);
     }
@@ -116,9 +146,7 @@ const AyahCard = ({ item, index }) => {
           await sound.playAsync();
           setIsPlaying(true);
         } else {
-          // Dapatkan nomor surah dari parent component
-          const surahNumber = item.surah || 1; // default ke surah 1 jika tidak ada
-          await playSound(surahNumber, item.nomor);
+          await playSound(item.surah, item.nomor);
         }
       }
     } catch (error) {
@@ -159,7 +187,9 @@ const AyahCard = ({ item, index }) => {
       </View>
 
       <View style={styles.ayahContent}>
-        <Text style={styles.arabicText}>{item.ar}</Text>
+        <View style={styles.arabicContainer}>
+          <Text style={styles.arabicText}>{item.ar}</Text>
+        </View>
         <View style={styles.translationContainer}>
           <Text style={styles.latinText}>{cleanHtmlTags(item.tr)}</Text>
           <Text style={styles.translationText}>{item.idn}</Text>
@@ -189,12 +219,25 @@ export default function SurahScreen({ route }) {
   const fetchAyahs = async () => {
     try {
       const response = await axios.get(`https://quran-api.santrikoding.com/api/surah/${nomor}`);
-      // Tambahkan nomor surah ke setiap ayat
-      const ayatsWithSurah = response.data.ayat.map(ayat => ({
+      
+      // Hitung nomor ayat global
+      let startAyat = 0;
+      if (nomor > 1) {
+        // Fetch data surah sebelumnya untuk mendapatkan total ayat
+        const prevSurahsResponse = await axios.get('https://quran-api.santrikoding.com/api/surah');
+        for (let i = 0; i < nomor - 1; i++) {
+          startAyat += prevSurahsResponse.data[i].jumlah_ayat;
+        }
+      }
+
+      // Tambahkan nomor surah dan nomor ayat global ke setiap ayat
+      const ayatsWithData = response.data.ayat.map((ayat, index) => ({
         ...ayat,
-        surah: nomor
+        surah: nomor,
+        nomor_ayat_global: startAyat + ayat.nomor
       }));
-      setAyahs(ayatsWithSurah);
+
+      setAyahs(ayatsWithData);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching ayahs:', error);
@@ -247,33 +290,33 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: COLORS.primary,
-    padding: 20,
+    padding: 12,
     paddingTop: 40,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    elevation: 5,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   headerContent: {
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 8,
   },
   surahName: {
-    fontSize: 32,
+    fontSize: 24,
     color: COLORS.white,
     fontWeight: 'bold',
-    marginBottom: 5,
+    marginBottom: 2,
   },
   surahNameLatin: {
-    fontSize: 20,
+    fontSize: 15,
     color: COLORS.light,
-    marginBottom: 5,
+    marginBottom: 2,
   },
   surahInfo: {
-    fontSize: 16,
+    fontSize: 13,
     color: COLORS.light,
     opacity: 0.8,
   },
@@ -281,34 +324,63 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: COLORS.light,
     opacity: 0.2,
-    marginVertical: 15,
+    marginVertical: 8,
   },
   descriptionContainer: {
     overflow: 'hidden',
   },
   descriptionContent: {
-    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    marginVertical: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  descriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  infoIcon: {
+    marginRight: 8,
+  },
+  descriptionTitle: {
+    fontSize: 16,
+    color: COLORS.accent,
+    fontWeight: 'bold',
   },
   description: {
     fontSize: 14,
     color: COLORS.light,
-    textAlign: 'left',
-    lineHeight: 20,
+    textAlign: 'justify',
+    lineHeight: 22,
     opacity: 0.9,
   },
   expandButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  expandButtonActive: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   expandText: {
     color: COLORS.light,
-    fontSize: 14,
+    fontSize: 13,
     marginRight: 5,
+    opacity: 0.9,
+    fontWeight: '500',
   },
   listContainer: {
-    padding: 15,
+    padding: 10,
+    paddingTop: 12,
   },
   ayahCard: {
     backgroundColor: COLORS.white,
@@ -346,23 +418,33 @@ const styles = StyleSheet.create({
   },
   ayahContent: {
     padding: 15,
+    minHeight: 160,
+  },
+  arabicContainer: {
+    minHeight: 70,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    marginBottom: 15,
   },
   arabicText: {
-    fontSize: 28,
+    fontSize: 32,
     color: COLORS.text,
     textAlign: 'right',
-    lineHeight: 55,
-    marginBottom: 20,
+    lineHeight: 60,
+    fontFamily: 'LPMQ',
   },
   translationContainer: {
     borderLeftWidth: 3,
     borderLeftColor: COLORS.accent,
     paddingLeft: 15,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 60,
   },
   latinText: {
     fontSize: 16,
     color: COLORS.textMuted,
-    marginBottom: 10,
+    marginBottom: 8,
     fontStyle: 'italic',
   },
   translationText: {
