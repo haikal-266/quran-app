@@ -2,7 +2,7 @@
 
 Aplikasi Al-Qur'an digital dengan fitur pencarian cerdas dan eksplorasi berdasarkan tema. Dibangun menggunakan React Native dan Expo.
 
-![App Screenshot](screenshot.png)
+![App Screenshot](screenshot.jpg)
 
 ## ✨ Fitur Utama
 
@@ -96,7 +96,7 @@ Kontribusi selalu diterima dengan senang hati. Untuk kontribusi besar, silakan b
 
 ## 👨‍💻 Pengembang
 
-- [Nama Anda](https://github.com/username)
+- [Haikal Rizky Tri Pramudya](https://github.com/haikal-266)
 
 ## 🙏 Terima Kasih Kepada
 
@@ -107,8 +107,8 @@ Kontribusi selalu diterima dengan senang hati. Untuk kontribusi besar, silakan b
 ## 📞 Kontak
 
 Untuk pertanyaan dan saran, silakan hubungi:
-- Email: your.email@domain.com
-- Twitter: [@username](https://twitter.com/username)
+- Email: haikaltri266@gmail.com
+- Instagram: [@kallkun266](https://www.instagram.com/kallkun266/)
 
 ---
 
