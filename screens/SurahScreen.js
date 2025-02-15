@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -92,7 +92,7 @@ const DescriptionDropdown = ({ description }) => {
   );
 };
 
-const AyahCard = ({ item, index }) => {
+const AyahCard = ({ item, isHighlighted }) => {
   const [sound, setSound] = useState();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -164,37 +164,41 @@ const AyahCard = ({ item, index }) => {
   }, [sound]);
 
   return (
-    <View style={styles.ayahCard}>
-      <View style={styles.ayahHeader}>
-        <View style={styles.numberContainer}>
-          <Text style={styles.ayahNumber}>{item.nomor}</Text>
+    <View>
+      <View style={styles.ayahCard}>
+        <View style={styles.ayahHeader}>
+          <View style={styles.numberContainer}>
+            <Text style={styles.ayahNumber}>{item.nomor}</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.audioButton}
+            onPress={handlePlayPause}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color={COLORS.accent} />
+            ) : (
+              <Ionicons 
+                name={isPlaying ? "pause-circle" : "play-circle"} 
+                size={36} 
+                color={COLORS.accent} 
+              />
+            )}
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={styles.audioButton}
-          onPress={handlePlayPause}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color={COLORS.accent} />
-          ) : (
-            <Ionicons 
-              name={isPlaying ? "pause-circle" : "play-circle"} 
-              size={32} 
-              color={COLORS.accent} 
-            />
-          )}
-        </TouchableOpacity>
-      </View>
 
-      <View style={styles.ayahContent}>
-        <View style={styles.arabicContainer}>
-          <Text style={styles.arabicText}>{item.ar}</Text>
-        </View>
-        <View style={styles.translationContainer}>
-          <Text style={styles.latinText}>{cleanHtmlTags(item.tr)}</Text>
-          <Text style={styles.translationText}>{item.idn}</Text>
+        <View style={styles.ayahContent}>
+          <View style={styles.arabicContainer}>
+            <Text style={styles.arabicText}>{item.ar}</Text>
+          </View>
+          <View style={styles.dividerLine} />
+          <View style={styles.translationContainer}>
+            <Text style={styles.latinText}>{cleanHtmlTags(item.tr)}</Text>
+            <Text style={styles.translationText}>{item.idn}</Text>
+          </View>
         </View>
       </View>
+      {isHighlighted && <View style={styles.searchDivider} />}
     </View>
   );
 };
@@ -203,7 +207,6 @@ export default function SurahScreen({ route }) {
   const { nomor, nama, nama_latin, deskripsi, jumlah_ayat, scrollToAyat } = route.params;
   const [ayahs, setAyahs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const flatListRef = useRef(null);
 
   useEffect(() => {
     fetchAyahs();
@@ -216,21 +219,6 @@ export default function SurahScreen({ route }) {
       playThroughEarpieceAndroid: false,
     });
   }, []);
-
-  useEffect(() => {
-    if (!loading && scrollToAyat && flatListRef.current) {
-      const index = ayahs.findIndex(ayah => ayah.nomor === scrollToAyat);
-      if (index !== -1) {
-        setTimeout(() => {
-          flatListRef.current.scrollToIndex({
-            index,
-            animated: true,
-            viewPosition: 0
-          });
-        }, 500);
-      }
-    }
-  }, [loading, scrollToAyat, ayahs]);
 
   const fetchAyahs = async () => {
     try {
@@ -247,11 +235,27 @@ export default function SurahScreen({ route }) {
       }
 
       // Tambahkan nomor surah dan nomor ayat global ke setiap ayat
-      const ayatsWithData = response.data.ayat.map((ayat, index) => ({
+      let ayatsWithData = response.data.ayat.map((ayat) => ({
         ...ayat,
         surah: nomor,
         nomor_ayat_global: startAyat + ayat.nomor
       }));
+
+      // Jika ada ayat yang dicari, atur ulang urutan ayat
+      if (scrollToAyat) {
+        const targetAyatIndex = ayatsWithData.findIndex(
+          ayat => ayat.nomor === parseInt(scrollToAyat)
+        );
+        
+        if (targetAyatIndex !== -1) {
+          const targetAyat = ayatsWithData[targetAyatIndex];
+          ayatsWithData = [
+            targetAyat,
+            ...ayatsWithData.slice(0, targetAyatIndex),
+            ...ayatsWithData.slice(targetAyatIndex + 1)
+          ];
+        }
+      }
 
       setAyahs(ayatsWithData);
       setLoading(false);
@@ -260,6 +264,13 @@ export default function SurahScreen({ route }) {
       setLoading(false);
     }
   };
+
+  const renderAyahCard = useCallback(({ item }) => (
+    <AyahCard 
+      item={item}
+      isHighlighted={scrollToAyat && item.nomor === parseInt(scrollToAyat)}
+    />
+  ), [scrollToAyat]);
 
   if (loading) {
     return (
@@ -284,21 +295,22 @@ export default function SurahScreen({ route }) {
       </View>
 
       <FlatList
-        ref={flatListRef}
         data={ayahs}
-        renderItem={({ item, index }) => <AyahCard item={item} index={index} />}
+        renderItem={renderAyahCard}
         keyExtractor={(item) => item.nomor.toString()}
         contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        onScrollToIndexFailed={(info) => {
-          const wait = new Promise(resolve => setTimeout(resolve, 500));
-          wait.then(() => {
-            flatListRef.current?.scrollToIndex({ 
-              index: info.index, 
-              animated: true 
-            });
-          });
-        }}
+        showsVerticalScrollIndicator={true}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={3}
+        initialNumToRender={5}
+        windowSize={5}
+        ListHeaderComponent={scrollToAyat ? (
+          <View style={styles.jumpToContainer}>
+            <Text style={styles.jumpToText}>
+              Menampilkan Ayat {scrollToAyat}
+            </Text>
+          </View>
+        ) : null}
       />
     </View>
   );
@@ -412,70 +424,108 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: 15,
     marginBottom: 15,
-    elevation: 2,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 2,
+    shadowRadius: 4,
+    marginHorizontal: 2,
   },
   ayahHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: COLORS.primary + '08',
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
   },
   numberContainer: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     backgroundColor: COLORS.primary,
-    borderRadius: 20,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
   },
   ayahNumber: {
     color: COLORS.white,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   audioButton: {
-    padding: 5,
+    padding: 4,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.8)',
   },
   ayahContent: {
-    padding: 15,
-    minHeight: 160,
+    padding: 16,
   },
   arabicContainer: {
-    minHeight: 70,
+    minHeight: 80,
     justifyContent: 'center',
-    alignItems: 'flex-end',
-    marginBottom: 15,
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 8,
   },
   arabicText: {
-    fontSize: 32,
+    fontSize: 28,
     color: COLORS.text,
-    textAlign: 'right',
-    lineHeight: 60,
+    textAlign: 'center',
+    lineHeight: 56,
     fontFamily: 'LPMQ',
   },
+  dividerLine: {
+    height: 1,
+    backgroundColor: COLORS.accent + '30',
+    marginVertical: 12,
+    width: '100%',
+  },
   translationContainer: {
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.accent,
-    paddingLeft: 15,
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 60,
+    paddingHorizontal: 8,
+    paddingTop: 8,
   },
   latinText: {
-    fontSize: 16,
-    color: COLORS.textMuted,
+    fontSize: 15,
+    color: COLORS.accent,
     marginBottom: 8,
     fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 24,
   },
   translationText: {
     fontSize: 14,
     color: COLORS.text,
-    lineHeight: 22,
+    lineHeight: 24,
+    textAlign: 'left',
+  },
+  highlightedAyah: {
+    backgroundColor: COLORS.accent + '08',
+  },
+  jumpToContainer: {
+    backgroundColor: COLORS.accent + '20',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  jumpToText: {
+    color: COLORS.accent,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  searchDivider: {
+    height: 2,
+    backgroundColor: COLORS.accent,
+    marginHorizontal: 20,
+    marginBottom: 15,
+    opacity: 0.5,
   },
 });

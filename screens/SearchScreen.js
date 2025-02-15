@@ -16,8 +16,8 @@ import axios from 'axios';
 import { COLORS } from '../constants/Colors';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.75;
-const SPACING = 12;
+const CARD_WIDTH = width * 0.85;
+const SPACING = 16;
 
 // Data tema Al-Quran
 const QURAN_THEMES = [
@@ -154,12 +154,7 @@ const ThemeCard = ({ theme, onPress, surahs, index, scrollX }) => {
 
   const opacity = scrollX.interpolate({
     inputRange,
-    outputRange: [0.7, 1, 0.7],
-  });
-
-  const translateY = scrollX.interpolate({
-    inputRange,
-    outputRange: [4, 0, 4], // Slight lift for active card
+    outputRange: [0.6, 1, 0.6],
   });
 
   return (
@@ -167,11 +162,9 @@ const ThemeCard = ({ theme, onPress, surahs, index, scrollX }) => {
       style={[
         styles.themeCardContainer,
         {
-          transform: [
-            { scale },
-            { translateY }
-          ],
+          transform: [{ scale }],
           opacity,
+          backgroundColor: COLORS.white,
         },
       ]}
     >
@@ -181,22 +174,30 @@ const ThemeCard = ({ theme, onPress, surahs, index, scrollX }) => {
         activeOpacity={0.9}
       >
         <View style={styles.themeHeader}>
-          <Text style={styles.themeIcon}>{theme.icon}</Text>
+          <Animated.Text style={[styles.themeIcon, { opacity }]}>
+            {theme.icon}
+          </Animated.Text>
           <View style={styles.themeBadge}>
             <Text style={styles.themeCount}>{relatedSurahs.length} Surah</Text>
           </View>
         </View>
-        <View style={styles.themeContent}>
-          <Text style={styles.themeName} numberOfLines={1}>{theme.name}</Text>
-          <Text style={styles.themeDescription} numberOfLines={2}>{theme.description}</Text>
-          <Text style={styles.surahList} numberOfLines={2}>
-            {relatedSurahs.slice(0, 3).map(surah => surah.nama_latin).join(', ')}
-            {relatedSurahs.length > 3 ? `, dan ${relatedSurahs.length - 3} surah lainnya` : ''}
-          </Text>
+
+        <View style={styles.mainContent}>
+          <View>
+            <Text style={styles.themeName} numberOfLines={1}>{theme.name}</Text>
+            <Text style={styles.themeDescription} numberOfLines={1}>{theme.description}</Text>
+          </View>
+          
+          <View style={styles.surahListContainer}>
+            <Text style={styles.surahList} numberOfLines={2} color={COLORS.accent}>
+              {relatedSurahs.slice(0, 3).map(surah => surah.nama_latin).join(', ')}
+              {relatedSurahs.length > 3 ? ` dan ${relatedSurahs.length - 3} surah lainnya` : ''}
+            </Text>
+          </View>
         </View>
+
         <View style={styles.themeFooter}>
-          <Text style={styles.exploreText}>Jelajahi</Text>
-          <Ionicons name="arrow-forward" size={18} color={COLORS.accent} />
+          
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -276,28 +277,34 @@ export default function SearchScreen({ navigation }) {
 
     const searchTerm = searchTerms.join(' ');
     
-    const results = surahs.map(surah => {
-      const nameLatin = cleanString(surah.nama_latin);
-      const nama = cleanString(surah.nama);
-      const arti = cleanString(surah.arti);
+    const results = surahs
+      .map(surah => {
+        const nameLatin = cleanString(surah.nama_latin);
+        const nama = cleanString(surah.nama);
+        const arti = cleanString(surah.arti);
 
-      const similarities = [
-        calculateSimilarity(searchTerm, nameLatin),
-        calculateSimilarity(searchTerm, nama),
-        calculateSimilarity(searchTerm, arti)
-      ];
+        const similarities = [
+          calculateSimilarity(searchTerm, nameLatin),
+          calculateSimilarity(searchTerm, nama),
+          calculateSimilarity(searchTerm, arti)
+        ];
 
-      const maxSimilarity = Math.max(...similarities);
+        const maxSimilarity = Math.max(...similarities);
 
-      return {
-        ...surah,
-        relevance: maxSimilarity,
-        ayat: ayatNumber
-      };
-    })
-    .filter(result => result.relevance > 0.3) // Hanya tampilkan hasil dengan kemiripan > 30%
-    .sort((a, b) => b.relevance - a.relevance)
-    .slice(0, 5); // Batasi hasil pencarian
+        return {
+          ...surah,
+          relevance: maxSimilarity,
+          ayat: ayatNumber
+        };
+      })
+      .filter(result => {
+        // Filter berdasarkan kemiripan dan validasi jumlah ayat
+        const hasSimilarity = result.relevance > 0.3;
+        const hasValidAyat = !ayatNumber || (ayatNumber && ayatNumber <= result.jumlah_ayat);
+        return hasSimilarity && hasValidAyat;
+      })
+      .sort((a, b) => b.relevance - a.relevance)
+      .slice(0, 5);
 
     setSearchResults(results);
   }, [surahs]);
@@ -355,14 +362,18 @@ export default function SearchScreen({ navigation }) {
           <Animated.FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.themesScroll}
+            contentContainerStyle={[
+              styles.themesScroll,
+              { paddingHorizontal: (width - CARD_WIDTH) / 2 }
+            ]}
             snapToInterval={CARD_WIDTH + SPACING}
-            decelerationRate="fast"
+            decelerationRate={0.8}
+            bounces={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { x: scrollX } } }],
               { useNativeDriver: true }
             )}
-            data={selectedThemes}
+            data={QURAN_THEMES}
             renderItem={({ item, index }) => (
               <ThemeCard
                 theme={item}
@@ -509,85 +520,88 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   themesTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: 4,
-    paddingHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 20,
   },
   themesSubtitle: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    marginBottom: 20,
-    paddingHorizontal: 16,
+    fontSize: 15,
+    color: '#9A7777',
+    marginBottom: 24,
+    paddingHorizontal: 20,
   },
   themesScroll: {
-    paddingLeft: 16,
-    paddingRight: width * 0.15,
+    paddingVertical: 10,
   },
   themeCardContainer: {
     width: CARD_WIDTH,
     marginRight: SPACING,
-  },
-  themeCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: 20,
     height: 200,
-    elevation: 8,
-    shadowColor: COLORS.primary,
+    borderRadius: 24,
+    backgroundColor: COLORS.white,
+    elevation: 2,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 1,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 2,
+  },
+  themeCard: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'space-between',
   },
   themeHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  mainContent: {
+    flex: 1,
+    marginTop: 12,
+    marginBottom: 12,
+    justifyContent: 'space-between',
   },
   themeIcon: {
     fontSize: 32,
   },
   themeBadge: {
-    backgroundColor: COLORS.primary + '10',
+    backgroundColor: '#F8F8F8',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 100,
   },
   themeCount: {
-    color: COLORS.primary,
-    fontSize: 12,
+    color: '#404040',
+    fontSize: 13,
     fontWeight: '600',
   },
-  themeContent: {
-    flex: 1,
-  },
   themeName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 6,
+    color: '#404040',
+    marginBottom: 4,
   },
   themeDescription: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    lineHeight: 20,
-    marginBottom: 8,
+    fontSize: 15,
+    color: '#9A7777',
+  },
+  surahListContainer: {
+    marginTop: 12,
   },
   surahList: {
-    fontSize: 12,
-    color: COLORS.textMuted,
+    fontSize: 13,
+    color: '#9A7777',
     fontStyle: 'italic',
-    lineHeight: 16,
+    lineHeight: 18,
   },
   themeFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
   },
   exploreText: {
     fontSize: 14,
