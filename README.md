@@ -2,6 +2,7 @@
 
 Aplikasi Al-Qur'an digital dengan fitur pencarian cerdas dan eksplorasi berdasarkan tema. Dibangun menggunakan React Native dan Expo.
 
+
 ## ✨ Fitur Utama
 
 - 🔍 **Pencarian Cerdas**
