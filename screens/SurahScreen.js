@@ -200,9 +200,10 @@ const AyahCard = ({ item, index }) => {
 };
 
 export default function SurahScreen({ route }) {
-  const { nomor, nama, nama_latin, deskripsi, jumlah_ayat } = route.params;
+  const { nomor, nama, nama_latin, deskripsi, jumlah_ayat, scrollToAyat } = route.params;
   const [ayahs, setAyahs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const flatListRef = useRef(null);
 
   useEffect(() => {
     fetchAyahs();
@@ -215,6 +216,21 @@ export default function SurahScreen({ route }) {
       playThroughEarpieceAndroid: false,
     });
   }, []);
+
+  useEffect(() => {
+    if (!loading && scrollToAyat && flatListRef.current) {
+      const index = ayahs.findIndex(ayah => ayah.nomor === scrollToAyat);
+      if (index !== -1) {
+        setTimeout(() => {
+          flatListRef.current.scrollToIndex({
+            index,
+            animated: true,
+            viewPosition: 0
+          });
+        }, 500);
+      }
+    }
+  }, [loading, scrollToAyat, ayahs]);
 
   const fetchAyahs = async () => {
     try {
@@ -268,11 +284,21 @@ export default function SurahScreen({ route }) {
       </View>
 
       <FlatList
+        ref={flatListRef}
         data={ayahs}
         renderItem={({ item, index }) => <AyahCard item={item} index={index} />}
         keyExtractor={(item) => item.nomor.toString()}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        onScrollToIndexFailed={(info) => {
+          const wait = new Promise(resolve => setTimeout(resolve, 500));
+          wait.then(() => {
+            flatListRef.current?.scrollToIndex({ 
+              index: info.index, 
+              animated: true 
+            });
+          });
+        }}
       />
     </View>
   );
