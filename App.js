@@ -5,7 +5,8 @@ import HomeScreen from './screens/HomeScreen';
 import SurahScreen from './screens/SurahScreen';
 import SplashScreen from './screens/SplashScreen';
 import SearchScreen from './screens/SearchScreen';
-import QiblaScreen from './screens/QiblaScreen';
+import TafsirScreen from './screens/TafsirScreen';
+import TafsirDetail from './screens/TafsirDetail';
 import AIScreen from './screens/AIScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import { StatusBar } from 'expo-status-bar';
@@ -82,8 +83,8 @@ export default function App() {
             component={SearchScreen}
           />
           <Stack.Screen 
-            name="Qibla" 
-            component={QiblaScreen}
+            name="Tafsir" 
+            component={TafsirScreen}
           />
           <Stack.Screen 
             name="AI" 
@@ -92,6 +93,10 @@ export default function App() {
           <Stack.Screen 
             name="Settings" 
             component={SettingsScreen}
+          />
+          <Stack.Screen 
+            name="TafsirDetail" 
+            component={TafsirDetail}
           />
         </Stack.Navigator>
         {showNavbar && (

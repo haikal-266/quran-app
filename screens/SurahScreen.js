@@ -203,12 +203,15 @@ const AyahCard = ({ item, isHighlighted }) => {
   );
 };
 
-export default function SurahScreen({ route }) {
-  const { nomor, nama, nama_latin, deskripsi, jumlah_ayat, scrollToAyat } = route.params;
+export default function SurahScreen({ route, navigation }) {
+  const { nomor, nama, nama_latin, deskripsi, jumlah_ayat, scrollToAyat, activeRoute } = route.params;
   const [ayahs, setAyahs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Set activeRoute saat komponen dimount
+    navigation.getParent()?.setParams({ activeRoute });
+    
     fetchAyahs();
     // Setup audio mode
     Audio.setAudioModeAsync({

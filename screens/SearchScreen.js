@@ -316,7 +316,8 @@ export default function SearchScreen({ navigation }) {
       nama_latin: item.nama_latin,
       jumlah_ayat: item.jumlah_ayat,
       deskripsi: item.deskripsi,
-      scrollToAyat: item.ayat
+      scrollToAyat: item.ayat,
+      activeRoute: 'Search'
     });
   };
 

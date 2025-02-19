@@ -49,17 +49,17 @@ export default function Navbar({ navigation, activeRoute }) {
 
       <TouchableOpacity 
         style={styles.navItem}
-        onPress={() => navigation.navigate('Qibla')}
+        onPress={() => navigation.navigate('Tafsir')}
       >
         <MaterialCommunityIcons 
-          name="compass" 
+          name="book-open-page-variant" 
           size={24} 
-          color={activeRoute === 'Qibla' ? COLORS.accent : COLORS.textLight} 
+          color={activeRoute === 'Tafsir' ? COLORS.accent : COLORS.textLight} 
         />
         <Text style={[
           styles.navText,
-          { color: activeRoute === 'Qibla' ? COLORS.accent : COLORS.textLight }
-        ]}>Kiblat</Text>
+          { color: activeRoute === 'Tafsir' ? COLORS.accent : COLORS.textLight }
+        ]}>Tafsir</Text>
       </TouchableOpacity>
 
       <TouchableOpacity 

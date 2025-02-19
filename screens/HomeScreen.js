@@ -86,7 +86,8 @@ export default function HomeScreen({ navigation }) {
       nama: item.nama,
       nama_latin: item.nama_latin,
       jumlah_ayat: item.jumlah_ayat,
-      deskripsi: item.deskripsi
+      deskripsi: item.deskripsi,
+      activeRoute: 'Home'
     });
   }, [navigation]);
 
